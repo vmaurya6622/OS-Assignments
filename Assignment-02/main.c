@@ -26,18 +26,12 @@ void print_history(CommandHistory history[], int history_size)
     for (int i = 0; i < history_size; i++)
     {
         printf("PID: %d\n", history[i].pid);
-
-        // Get the current time in milliseconds
         struct timeval current_time;
         gettimeofday(&current_time, NULL);
         long long current_time_ms = current_time.tv_sec * 1000LL + current_time.tv_usec / 1000;
-
         printf("Start Time: %s", ctime(&history[i].start_time));
-
-        // Calculate the duration in milliseconds
         long long duration_ms = current_time_ms - (history[i].start_time * 1000LL);
         printf("Duration: %.2f milliseconds\n", (double)duration_ms / 1000.0);
-
         printf("Command: %s\n", history[i].command);
         printf("\n");
     }
@@ -60,11 +54,10 @@ int main()
         getcwd(curr_work_dir, 4096);
         strcat(perm_directory, "/");
         printf("K@li $-> ");
-
         size_t size = 1024;
         char arr_fgets[4096];
         fgets(arr_fgets, 4096, stdin);
-
+        strncpy(history[history_size].command, arr_fgets, sizeof(history[history_size].command));
         char *delin_ch = " \n";
         char *token_ch;
         char **given_input = (char **)malloc(4096 * sizeof(char *));
@@ -78,12 +71,10 @@ int main()
             given_input[i] = token_ch;
         }
         int arg_count = 0;
-
         while (given_input[arg_count] != NULL)
         {
             arg_count++;
         }
-
         if (arg_count == 0)
         {
             continue;
@@ -94,7 +85,6 @@ int main()
             perror("fork");
             exit(EXIT_FAILURE);
         }
-        // printf("%s",given_input[2]);
         if (pid == 0)
         {
             if (strcmp(given_input[0], "echo") == 0) // pass  cat hw.c | wc -l
@@ -148,7 +138,7 @@ int main()
                 }
                 else if (arg_count == 2)
                 {
-                    char *args[] = {"cat",given_input[1],NULL};
+                    char *args[] = {"cat", given_input[1], NULL};
                     execv("/bin/cat", args);
                     perror("execv");
                     exit(EXIT_FAILURE);
@@ -156,7 +146,8 @@ int main()
                 else if (strcmp(given_input[2], "|") == 0) // pass
                 {
                     char input_command[4096] = "";
-                    for(int i=0;i<arg_count;i++){
+                    for (int i = 0; i < arg_count; i++)
+                    {
                         strcat(input_command, given_input[i]);
                         strcat(input_command, " ");
                     }
@@ -164,7 +155,6 @@ int main()
                     perror("execl (shell)");
                     exit(EXIT_FAILURE);
                 }
-
             }
             else if (strcmp(given_input[0], "exit") == 0 || strcmp(given_input[0], "close") == 0) // pass
             {
@@ -210,16 +200,16 @@ int main()
                 exit(EXIT_FAILURE);
             }
 
-            else if (strncmp(given_input[0], "./", 2) == 0) //pass    // use "./<space>fib.c" to compile and run
+            else if (strncmp(given_input[0], "./", 2) == 0) // pass    // use "./<space>fib.c" to compile and run
             {
-                if(arg_count == 1)
+                if (arg_count == 1)
                 {
                     char *execute_args[] = {"./temp_binary", given_input[2], NULL};
                     execvp(given_input[0], execute_args);
                     perror("execvp");
                     exit(EXIT_FAILURE);
                 }
-                else if(arg_count==2)
+                else if (arg_count == 2)
                 {
                     // Compile and run the .c file
                     char *compile_args[] = {"gcc", given_input[1], "-o", "temp_binary", NULL};
@@ -261,7 +251,6 @@ int main()
                 {
                     printf("Usage: ./<filename> to execute the binary and ./<space>fib.c to compile and run \n");
                     exit(EXIT_FAILURE);
-
                 }
             }
 
@@ -327,6 +316,10 @@ int main()
                     exit(EXIT_FAILURE);
                 }
             }
+            else if (strcmp(given_input[0], "pwd") == 0)
+            { // pass
+                printf("%s\n", curr_work_dir);
+            }
             else if (strcmp(given_input[0], "uniq") == 0) // pass
             {
                 if (arg_count != 2)
@@ -347,6 +340,7 @@ int main()
                 printf("Command not supported yet or not a command!\n");
                 exit(EXIT_FAILURE);
             }
+            history_size++;
         }
         else // pass
         {
@@ -354,8 +348,10 @@ int main()
             cmd.pid = pid;
             cmd.start_time = time(NULL);
             cmd.duration = -1.0; // To be filled in when the command completes
-            strncpy(cmd.command, arr_fgets, sizeof(cmd.command));
-            history[history_size] = cmd;
+            // strncpy(cmd.command, arr_fgets, sizeof(cmd.command));
+            strncpy(history[history_size].command, arr_fgets, sizeof(history[history_size].command));
+
+            // history[history_size] = cmd;
             history_size++;
             int status;
             waitpid(pid, &status, 0);
