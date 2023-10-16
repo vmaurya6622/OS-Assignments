@@ -1,7 +1,7 @@
 file names along with the Fibonacci number range they calculate :-
 they calculate this in a for loop and print the nth fibonacci number to the console :
 
-1. --> 1.out: 1-202.
+1. --> 1.out: 1-20.
 2. --> 2.out: 21-30
 3. --> 3.out: 31-35
 4. --> 4.out: 36-40
@@ -10,7 +10,7 @@ they calculate this in a for loop and print the nth fibonacci number to the cons
 
 _**General Instructions**_ :-
 
-1. In the terminal based on UNIX run "gcc main.c -o main.out && ./main.out" without quotes to run the code.
+1. In the terminal based on UNIX run "gcc main.c -o main.out && ./main.out <NCPU> <TSLICE>" without quotes to run the code.
 2. submit the input files to save them in the queue.
 3. you will be provided with a pid after you submit the program which you can use to track the process.
 3. you can also add the process priority as eg. "submit ./1.out 2" this "2" can be any integral number being (1,2,3,4)
