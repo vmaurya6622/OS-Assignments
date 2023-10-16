@@ -8,7 +8,7 @@ they calculate this in a for loop and print the nth fibonacci number to the cons
 -->   5.out : 41-45
 
 
-General Instructions :-
+_**General Instructions**_ :-
 
 1. In the terminal based on UNIX run "gcc main.c -o main.out && ./main.out" without quotes to run the code.
 2. submit the input files to save them in the queue.
@@ -21,7 +21,7 @@ General Instructions :-
             "exit"    : to exit from the simpleshell and simplescheduler.
             "history" : to print the history again to the console.
             "set"     : to set a new time slice to the program being nprocs same.
-6. after finishing round-robin scheduling history will be printed to the console containing \n
-    file_name, pid, execution time, waiting time, priority.
+6. after finishing round-robin scheduling history will be printed to the console containing 
+    **file_name, pid, execution time, waiting time, priority**.
 
                                                                 *********
