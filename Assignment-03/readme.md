@@ -1,8 +1,8 @@
 file names along with the Fibonacci number range they calculate :-
 they calculate this in a for loop and print the nth fibonacci number to the console :
 
--->   1.out : 1-20 \n
--->   2.out : 21-30 \n
+-->   1.out : 1-20 \b
+-->   2.out : 21-30 
 -->   3.out : 31-35
 -->   4.out : 36-40
 -->   5.out : 41-45
