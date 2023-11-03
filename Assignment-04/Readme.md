@@ -1,6 +1,6 @@
 +=+=+=+=+=+=+=+=+=+=+=+=+**Simple Smart Loader**+=+=+=+=+=+=+=+=+=+=+=+=+
 
-_**Contributors :- **_ :- \n
+_**Contributors :- **_ :- <br>
         Vishal Kumar Maurya (2022580) and Subham Maurya (2022510)
 _**General Instructions**_ :-
  1. In the linux bash write 'make' withput quotes to start the exection of the file and get the number of segmentation faults.
