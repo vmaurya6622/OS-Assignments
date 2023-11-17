@@ -49,7 +49,7 @@ static void *parallel_for_helper_2d(void *arg)
 void parallel_for(int low, int high, std::function<void(int)> &&lambda, int numThreads)
 {
     auto start = std::chrono::high_resolution_clock::now();
-    std ::cout << "Thread Creation Started for 1-D array Started :\n";
+    std ::cout << "1D-Thread Creation Started\n";
     // Create threads
     pthread_t threads[numThreads];
     ThreadData data[numThreads];
@@ -67,48 +67,77 @@ void parallel_for(int low, int high, std::function<void(int)> &&lambda, int numT
         pthread_join(threads[i], nullptr);
     }
 
-    std ::cout << "Threads process Completed for 1-D\n";
+    std ::cout << "All 1D-Threads Completed\n";
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = end - start;
-    std::cout << "Execution time for parallel_for(1-D): " << duration.count() << " seconds\n";
+    std::cout << "Execution time for parallel_for(1D): " << duration.count() << " seconds\n";
 }
 
+/*Parallelizing for i*/
 void parallel_for(int low1, int high1, int low2, int high2, std::function<void(int, int)> &&lambda, int numThreads)
 {
     auto start = std::chrono::high_resolution_clock::now();
-        std ::cout << "Thread Creation Started for 2-D array Started :\n";
-
+    std ::cout << "2D-Thread Creation Started\n";
 
     // Create threads
-    int loop_1 = (high1-low1);
-    pthread_t threads[numThreads * loop_1];
-    ThreadData2D data[numThreads * loop_1];
-    int chunk = (high2-low2)/numThreads;
-    int index = 0;
-    for (int i = 0; i < loop_1; ++i)
+    pthread_t threads[numThreads];
+    ThreadData2D data[numThreads];
+    int chunk = (high1-low1)/numThreads;
+    for (int i = 0; i < numThreads; ++i)
     {
-      for (int j = 0 ; j < numThreads ; j++)
-      {
-          data[index].low1=i; data[index].high1=(i+1);
-          data[index].low2=j*chunk; data[index].high2=(j+1)*chunk;
-          data[index].lambda = lambda;
-          pthread_create(&threads[index], nullptr, parallel_for_helper_2d,(void*) &data[index]);
-          index++;
-      }
+        data[i].low1=i*chunk; data[i].high1=(i+1)*chunk;
+        data[i].low2=low2; data[i].high2=high2;
+        data[i].lambda = lambda;
+        pthread_create(&threads[i], nullptr, parallel_for_helper_2d,(void*) &data[i]);
     }
 
     // Join threads
-    for (int i = 0; i < numThreads*loop_1; ++i)
+    for (int i = 0; i < numThreads; ++i)
     {
         pthread_join(threads[i], nullptr);
     }
 
-    std ::cout << "Threads process Completed for 2-D\n";
+    std ::cout << "All 2D-Threads Completed\n";
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = end - start;
-    std::cout << "Execution time for parallel_for(2-D): " << duration.count() << " seconds\n";
+    std::cout << "Execution time for parallel_for (2D): " << duration.count() << " seconds\n";
 }
 
+/*Parallelizing for j*/
+// void parallel_for(int low1, int high1, int low2, int high2, std::function<void(int, int)> &&lambda, int numThreads)
+// {
+//     auto start = std::chrono::high_resolution_clock::now();
+//     std ::cout << "2D-Thread Creation Started\n";
+
+//     // Create threads
+//     int loop_1 = (high1-low1);
+//     pthread_t threads[numThreads * loop_1];
+//     ThreadData2D data[numThreads * loop_1];
+//     int chunk = (high2-low2)/numThreads;
+//     int index = 0;
+//     for (int i = 0; i < loop_1; ++i)
+//     {
+//       for (int j = 0 ; j < numThreads ; j++)
+//       {
+//           data[index].low1=i; data[index].high1=(i+1);
+//           data[index].low2=j*chunk; data[index].high2=(j+1)*chunk;
+//           data[index].lambda = lambda;
+//           pthread_create(&threads[index], nullptr, parallel_for_helper_2d,(void*) &data[index]);
+//           index++;
+//       }
+//     }
+
+//     // Join threads
+//     for (int i = 0; i < numThreads*loop_1; ++i)
+//     {
+//         pthread_join(threads[i], nullptr);
+//     }
+
+//     std ::cout << "All 2D-Threads Completed\n";
+//     auto end = std::chrono::high_resolution_clock::now();
+//     std::chrono::duration<double> duration = end - start;
+//     std::cout << "Execution time for parallel_for (2D): " << duration.count() << " seconds\n";
+// }
 
 /* Demonstration on how to pass lambda as parameter.
  * "&&" means r-value reference. You may read about it online.
