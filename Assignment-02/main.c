@@ -13,7 +13,7 @@
 
 typedef struct
 {
-    pid_t pid;
+    pid_t p_id;
     time_t start_time;
     double duration;
     char command[4096];
@@ -25,13 +25,13 @@ void print_history(CommandHistory history[], int history_size)
 {
     for (int i = 0; i < history_size; i++)
     {
-        printf("PID: %d\n", history[i].pid);
+        printf("PID: %d\n", history[i].p_id);
         struct timeval current_time;
         gettimeofday(&current_time, NULL);
         long long current_time_ms = current_time.tv_sec * 1000LL + current_time.tv_usec / 1000;
         printf("Start Time: %s", ctime(&history[i].start_time));
         long long duration_ms = current_time_ms - (history[i].start_time * 1000LL);
-        printf("Duration: %.2f milliseconds\n", (double)duration_ms / 1000.0);
+        printf("Duration: %.2f milliseconds\n", (double)duration_ms);
         printf("Command: %s\n", history[i].command);
         printf("\n");
     }
@@ -48,7 +48,8 @@ int main()
     printf("Shell Author: Vishal(2022580) & Subham(2022510)\n");
     CommandHistory history[MAX_HISTORY_SIZE];
     int history_size = 0;
-    while (1)
+    bool flag=true;
+    while (flag)
     {
         char curr_work_dir[4096];
         getcwd(curr_work_dir, 4096);
@@ -80,6 +81,8 @@ int main()
             continue;
         }
         pid_t pid = fork();
+        CommandHistory cmd;
+        // cmd.pid=pid;
         if (pid == -1)
         {
             perror("fork");
@@ -115,7 +118,7 @@ int main()
                     {
                         for (int i = 0; i < history_size; i++)
                         {
-                            fprintf(history_file, "PID: %d\n", history[i].pid);
+                            fprintf(history_file, "PID: %d\n", history[i].p_id);
                             fprintf(history_file, "Start Time: %s", ctime(&history[i].start_time));
                             fprintf(history_file, "Duration: %.2f seconds\n", history[i].duration);
                             fprintf(history_file, "Command: %s\n", history[i].command);
@@ -159,6 +162,10 @@ int main()
             else if (strcmp(given_input[0], "exit") == 0 || strcmp(given_input[0], "close") == 0) // pass
             {
                 printf("Exited Successfully!\n");
+                print_history(history, history_size);
+                flag=false;
+                break;
+                exit(0);
                 exit(EXIT_SUCCESS);
             }
             else if (strcmp(given_input[0], "ls") == 0) // pass
@@ -345,13 +352,13 @@ int main()
         else // pass
         {
             CommandHistory cmd;
-            cmd.pid = pid;
+            cmd.p_id = pid;
             cmd.start_time = time(NULL);
             cmd.duration = -1.0; // To be filled in when the command completes
-            // strncpy(cmd.command, arr_fgets, sizeof(cmd.command));
+            strncpy(cmd.command, arr_fgets, sizeof(cmd.command));
             strncpy(history[history_size].command, arr_fgets, sizeof(history[history_size].command));
 
-            // history[history_size] = cmd;
+            history[history_size] = cmd;
             history_size++;
             int status;
             waitpid(pid, &status, 0);
