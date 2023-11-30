@@ -14,6 +14,8 @@ size_t Total_Internal_Fragmentation = 0;
 void *Virtual_Memory_Addr;
 size_t Total_MEM_sz = 0;
 int Page_Allocation_Counter = 0;
+void *array[1000];
+int ind =0;
 
 void loader_cleanup();
 void Call_entrypoint(Elf32_Ehdr *ehdr, Elf32_Phdr *phdr);
@@ -76,11 +78,20 @@ int main(int argc, char **argv)
 	load_and_run_elf(argv);
 	loader_cleanup();
 
-	if (munmap(Virtual_Memory_Addr, Total_MEM_sz) == -1)
-	{
-		perror("Error unmapping memory");
-		loader_cleanup();
-		exit(1);
+	// if (munmap(Virtual_Memory_Addr, Total_MEM_sz) == -1)
+	// {
+	// 	perror("Error unmapping memory");
+	// 	loader_cleanup();
+	// 	exit(1);
+	// }
+
+	for(int i = 0 ; i<= ind ;i++){
+		if (munmap(array[i], Total_MEM_sz) == -1)
+		{
+			perror("Error unmapping memory");
+			loader_cleanup();
+			exit(1);
+		}
 	}
 
 	printf("Total Page Faults            : %d\n", Page_Fault_Counter);
@@ -167,6 +178,9 @@ void SegmentationFaultHandler(int signal, siginfo_t *info, void *context)
 				perror("mmap");
 				exit(0);
 			}
+
+			array[ind] = Virtual_Memory_Addr;
+			ind++;
 
 			int sizeUsing = PHDR_Table[i][1] > 4096 ? 4096 : PHDR_Table[i][1];
 			Previous_Address += (sizeUsing + 1);
