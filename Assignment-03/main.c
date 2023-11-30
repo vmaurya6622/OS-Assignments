@@ -15,6 +15,7 @@ struct QNode
     double execution_time;
     double waiting_time;
     double temp_wait;
+    double add_time;
 };
 
 struct Queue
@@ -22,7 +23,7 @@ struct Queue
     struct QNode *front, *rear;
 };
 
-struct QNode *newNode(pid_t k, char *name, int pr, double exec_time, double wait_time, double temp_wait)
+struct QNode *newNode(pid_t k, char *name, int pr, double exec_time, double wait_time, double temp_wait,double add_time)
 {
     struct QNode *temp = (struct QNode *)malloc(sizeof(struct QNode));
     temp->key = k;
@@ -32,6 +33,7 @@ struct QNode *newNode(pid_t k, char *name, int pr, double exec_time, double wait
     temp->next = NULL;
     temp->priority = pr;
     temp->temp_wait = temp_wait;
+    temp->add_time = add_time;
     return temp;
 }
 
@@ -42,9 +44,9 @@ struct Queue *createQueue()
     return q;
 }
 
-void enQueue(struct Queue *q, pid_t k, char *name, int priority, double exec_time, double wait_time, double temp_wait)
+void enQueue(struct Queue *q, pid_t k, char *name, int priority, double exec_time, double wait_time, double temp_wait,double add_time)
 {
-    struct QNode *temp = newNode(k, name, priority, exec_time, wait_time, temp_wait);
+    struct QNode *temp = newNode(k, name, priority, exec_time, wait_time, temp_wait,add_time);
     if (q->rear == NULL)
     {
         q->front = q->rear = temp;
@@ -95,10 +97,10 @@ void display(struct Queue *queue)
     struct QNode *temp = queue->front;
     int i = 1;
     printf("\nQueue: ");
-    printf("\nS.no  PID  File Name  Priority  Execution_time  Waiting_time  temp_wait \n ");
+    printf("\nS.no  PID  File Name  Priority  Execution_time  Waiting_time  temp_wait\n");
     while (temp != NULL)
     {
-        printf("(%d). %d, %s, %d, %f, %f, %f\n", i, temp->key, temp->file_name, temp->priority, temp->execution_time, temp->waiting_time, temp->temp_wait);
+        printf("(%d). %d, %s, %d, %f, %f, %f\n", i, temp->key, temp->file_name, temp->priority, temp->execution_time, temp->waiting_time - temp->add_time, temp->temp_wait);
         temp = temp->next;
         i++;
     }
@@ -110,20 +112,28 @@ void historyprinter(struct Queue *h)
     struct QNode *temp = h->front;
     int i = 1;
     printf("History: ");
-    printf("\n+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=++=+=+=+=+=+=+=+=+=+=+\n");
-    printf("S.no  PID  File Name  Priority  Execution_time  Waiting_time  Instance_wait\n");
+    printf("\n+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=++\n");
+    printf("S.no  PID  File Name  Priority  Execution_time  Waiting_time\n");
     while (temp != NULL)
     {
-        printf("(%d).  %d   %s      %d         %.3f       %.3f         %.3f\n", i, temp->key, temp->file_name, temp->priority, temp->execution_time, temp->waiting_time, temp->temp_wait);
+        printf("(%d).  %d   %s      %d         %.3f       %.3f\n", i, temp->key, temp->file_name, temp->priority, temp->execution_time, temp->waiting_time - temp->add_time);
         temp = temp->next;
         i++;
     }
-    printf("\n+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=++=+=+=+=+=+=+=+=+=+=+\n");
+    printf("\n+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=++\n");
 }
 
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // Advanced Queue to prioritize the queue.
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+typedef struct {
+    sem_t mutex;
+    struct Queue q;
+    struct Queue h;
+    struct Queue waiting_q;
+    struct Queue newQueue;
+} shm_t;
 
 int NCPU;
 float TSLICE;
@@ -131,10 +141,13 @@ volatile sig_atomic_t signal_received = 0;
 struct Queue *q;
 struct Queue *waiting_q;
 struct Queue *h;
+struct Queue *newQueue;
+int shm_fd;
+shm_t* shm;
 
-void enqueue_priority_start(struct Queue *q, pid_t k, char *name, int priority, double exec_time, double wait_time, double temp_wait)
+void enqueue_priority_start(struct Queue *q, pid_t k, char *name, int priority, double exec_time, double wait_time, double temp_wait,double add_time)
 {
-    struct QNode *temp = newNode(k, name, priority, exec_time, wait_time, temp_wait);
+    struct QNode *temp = newNode(k, name, priority, exec_time, wait_time, temp_wait,add_time);
     if (priority > 4)
     {
         printf("\nERROR :- Invalid priority (%d): valid range is [1-4].\n", priority);
@@ -242,9 +255,9 @@ void enqueue_priority_start(struct Queue *q, pid_t k, char *name, int priority, 
     }
 }
 
-void enqueue_priority_end(struct Queue *q, pid_t k, char *name, int priority, double exec_time, double wait_time, double temp_wait)
+void enqueue_priority_end(struct Queue *q, pid_t k, char *name, int priority, double exec_time, double wait_time, double temp_wait,double add_time)
 {
-    struct QNode *temp = newNode(k, name, priority, exec_time, wait_time, temp_wait);
+    struct QNode *temp = newNode(k, name, priority, exec_time, wait_time, temp_wait,add_time);
     if (priority > 4)
     {
         printf("\nERROR :- Invalid priority (%d): valid range is [1-4].\n", priority);
@@ -371,13 +384,14 @@ void dequeue_priority(struct Queue *q)
     double exec_time = q->front->execution_time;
     double wait_time = q->front->waiting_time;
     double temp_wait = q->front->temp_wait;
+    double add_time = q->front->add_time;
 
     if (priority < 4)
     {
         priority++;
     }
 
-    enqueue_priority_end(q, tmppid, fname, priority, exec_time, wait_time, temp_wait);
+    enqueue_priority_end(q, tmppid, fname, priority, exec_time, wait_time, temp_wait,add_time);
 
     q->front = q->front->next;
     free(temp);
@@ -387,11 +401,13 @@ void dequeue_priority(struct Queue *q)
 // Schedular and RoundRoubin scheduling algorithm.
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
+// sem_t schedulerSemaphore;
+
 void RoundRobin()
 {
-    printf("Schedular started running...\n");
+    printf("Scheduler started running...\n");
     display(q);
-    historyprinter(h);
+    // historyprinter(h);
     double t1 = 0.0;
     double t2 = 0.0;
 
@@ -419,9 +435,10 @@ void RoundRobin()
         t1 = t2;
         t2 += (TSLICE / 1000.0);
 
+        newQueue = createQueue();
+
         while (index < index_start && q->front != NULL)
         {
-
             struct QNode *temp = q->front;
             int status;
             if (waitpid(temp->key, &status, WNOHANG) != 0)
@@ -430,7 +447,7 @@ void RoundRobin()
                 temp->execution_time += (TSLICE / 1000.0);
                 temp->waiting_time += (t1 - temp->temp_wait);
                 temp->temp_wait = t2;
-                enQueue(h, temp->key, temp->file_name, temp->priority, temp->execution_time, temp->waiting_time, temp->temp_wait);
+                enQueue(h, temp->key, temp->file_name, temp->priority, temp->execution_time, temp->waiting_time, temp->temp_wait,temp->add_time);
                 remove_process(q);
             }
             else
@@ -447,34 +464,41 @@ void RoundRobin()
                     perror("kill");
                     printf("(PID: %d) has error in stopping.\n", temp->key);
                 }
-                dequeue_priority(q);
+                // dequeue_priority(q);
+                if (temp->priority < 4){temp->priority += 1;}
+                enQueue(newQueue, temp->key, temp->file_name, temp->priority, temp->execution_time, temp->waiting_time, temp->temp_wait,temp->add_time);
+                remove_process(q);
             }
 
-            display(q);
+            // display(q);
             index++;
+        }
+
+        while(newQueue->front != NULL){
+            struct QNode *temp = newQueue->front;
+            enqueue_priority_end(q, temp->key, temp->file_name, temp->priority, temp->execution_time, temp->waiting_time, temp->temp_wait,temp->add_time);
+            remove_process(newQueue);
         }
 
         while (waiting_q->front != NULL)
         {
-            printf("Adding process of waiting queue in the main queue...\n");
+            printf("Adding process of waiting queue to the main queue...\n");
             pid_t pid = waiting_q->front->key;
             char *fname = waiting_q->front->file_name;
             int priority = waiting_q->front->priority;
             double exec_time = waiting_q->front->execution_time;
             double wait_time = waiting_q->front->waiting_time;
             double temp_wait = waiting_q->front->temp_wait;
-            enqueue_priority_start(q, pid, fname, priority, exec_time, wait_time, temp_wait);
+            double add_time = t2;
+            enqueue_priority_start(q, pid, fname, priority, exec_time, wait_time, temp_wait,add_time);
             remove_process(waiting_q);
-            printf("Process added successfully in the main queue...\n");
+            printf("Process added successfully to the main queue...\n");
+
+            // sem_post(&schedulerSemaphore);
         }
     }
-    printf("\n-----> Schedular Executed all processes successfully <-----\n");
-    // historyprinter(h);
-    // exit(0);
-    //     printf("\nNow Printing History!\n");
-    //     printf("+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=++=+=+=+=+=+=+=+=+=+\n");
-    //     historyprinter(h);
-    //     printf("+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=++=+=+=+=+=+=+=+=+=+");
+
+    printf("\n-----> Scheduler Executed all processes successfully <-----\n");
 }
 
 void *Schedular(void *arg)
@@ -486,14 +510,16 @@ void *Schedular(void *arg)
         // printf("Entered...\n");
         if (signal_received)
         {
-            struct QNode *node = q->front;
-            if (node != NULL)
+            // struct QNode *node = q->front;
+            if (q->front != NULL)
             {
+                sem_wait(&shm->mutex);
                 RoundRobin();
+                sem_post(&shm->mutex);
             }
             else
             {
-                printf("No process remaining in the queue...\n");
+                printf("No process in the queue...\n");
             }
             signal_received = 0;
         }
@@ -518,10 +544,16 @@ void my_handler(int signum)
 
     else if (signum == SIGUSR2)
     {
-        printf("\n-----> Waiting for the Schedular to finish all jobs <-----\n");
         if (q->front != NULL)
         {
+            printf("\n-----> Waiting for the Schedular to finish all jobs <-----\n");
             signal_received = 1;
+        }
+        else
+        {
+            printf("Schedular Terminated Successfully\n");
+            historyprinter(h);
+            exit(0);
         }
 
         while (1)
@@ -531,18 +563,28 @@ void my_handler(int signum)
                 break;
             }
         }
+
+        munmap(shm, sizeof(shm_t));
+        close(shm_fd);
+        shm_unlink("/my_shm");
+        sem_destroy(&shm->mutex);
         historyprinter(h);
         exit(0);
     }
-    else
-    {
-        char buff1[100] = "\n\n(\\/)\n(..)\n/> Program Terminated by the user\n\n";
-        write(STDOUT_FILENO, buff1, 100);
-        printf("\n-----> Waiting for the Schedular to finish all jobs <-----\n");
+}
+
+void ctrl_c_handler(int signum) {
+    if (signum == SIGINT) {
+        printf("\n\n(\\/)\n(..)\n/> Program Terminated by the user\n\n");
 
         if (q->front != NULL)
         {
+            printf("\n-----> Waiting for the Schedular to finish all jobs <-----\n");
             signal_received = 1;
+        }
+        else
+        {
+            printf("Schedular Terminated Successfully\n");
         }
 
         while (1)
@@ -553,6 +595,11 @@ void my_handler(int signum)
             }
         }
         historyprinter(h);
+
+        munmap(shm, sizeof(shm_t));
+        close(shm_fd);
+        shm_unlink("/my_shm");
+        sem_destroy(&shm->mutex);
         exit(0);
     }
 }
@@ -566,13 +613,43 @@ int main(int argc, char *argv[])
     struct sigaction sig;
     memset(&sig, 0, sizeof(sig));
     sig.sa_handler = my_handler;
-    sigaction(SIGINT, &sig, NULL);
     sigaction(SIGUSR1, &sig, NULL);
     sigaction(SIGUSR2, &sig, NULL);
+    signal(SIGINT,ctrl_c_handler);
 
     q = createQueue();
     waiting_q = createQueue();
     h = createQueue();
+
+    // Create a shared memory segment
+    shm_fd = shm_open("/my_shm", O_CREAT | O_RDWR, 0666);
+    if (shm_fd == -1) {
+        perror("shm_open failed");
+        return 1;
+    }
+
+    // Set the size of the shared memory segment
+    ftruncate(shm_fd, sizeof(shm_t));
+
+    // Map the shared memory segment into your process's memory space
+    shm = (shm_t*) mmap (0, sizeof(shm_t), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    if (shm == MAP_FAILED) {
+        perror("mmap failed");
+        return 1;
+    }
+
+    // Initialize the semaphore
+    sem_init(&shm->mutex, 1, 1);
+
+    if (sem_init(&shm->mutex, 1, 1) == -1) {
+        perror("sem_init");
+        exit(EXIT_FAILURE);
+    }
+
+    memcpy(&shm->q, q, sizeof(struct Queue));
+    memcpy(&shm->h, h, sizeof(struct Queue));
+    memcpy(&shm->waiting_q, waiting_q, sizeof(struct Queue));
+    memcpy(&shm->newQueue, waiting_q,sizeof(struct Queue));
 
     char perm_directory[4096];
     char temp_perm_directory[4096];
@@ -630,6 +707,7 @@ int main(int argc, char *argv[])
 
         if (strcmp(given_input[0], "submit") == 0)
         {
+
             pid_t new_process = fork();
 
             // Storing the pid and file name in the process table i.e, queue named q
@@ -638,22 +716,22 @@ int main(int argc, char *argv[])
             {
                 if (signal_received == 0)
                 {
-                    enqueue_priority_start(q, new_process, given_input[1], 1, 0.0, 0.0, 0.0);
+                    enqueue_priority_start(q, new_process, given_input[1], 1, 0.0, 0.0, 0.0,0.0);
                 }
                 else
                 {
-                    enQueue(waiting_q, new_process, given_input[1], 1, 0.0, 0.0, 0.0);
+                    enQueue(waiting_q, new_process, given_input[1], 1, 0.0, 0.0, 0.0,0.0);
                 }
             }
             else
             {
                 if (signal_received == 0)
                 {
-                    enqueue_priority_start(q, new_process, given_input[1], atoi(given_input[2]), 0.0, 0.0, 0.0);
+                    enqueue_priority_start(q, new_process, given_input[1], atoi(given_input[2]), 0.0, 0.0, 0.0,0.0);
                 }
                 else
                 {
-                    enQueue(waiting_q, new_process, given_input[1], atoi(given_input[2]), 0.0, 0.0, 0.0);
+                    enQueue(waiting_q, new_process, given_input[1], atoi(given_input[2]), 0.0, 0.0, 0.0,0.0);
                 }
             }
 
@@ -711,19 +789,14 @@ int main(int argc, char *argv[])
             display(q);
         }
 
-        else if (strcmp(given_input[0], "set") == 0)
-        {
-            // To set/change the NCPU and TSLICE value of the schedular
-            printf("Enter the new TSLICE :- ");
-            scanf("%f", &TSLICE);
-            printf("NCPU: %d, TSLICE: %f\n", NCPU, TSLICE);
-        }
-
         else if (strcmp(given_input[0], "history") == 0)
         {
             // To print the history
             printf("\nPrinting History....\n");
             historyprinter(h);
+        }
+        else{
+            printf("Wrong Input\n");
         }
     }
 }
